@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<!-- 网页使用的语言 -->
+<html lang="zh-CN">
+<head>
+    <!-- 指定字符集 -->
+    <meta charset="utf-8">
+    <!-- 使用Edge最新的浏览器的渲染方式 -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <!-- viewport视口：网页可以根据设置的宽度自动进行适配，在浏览器的内部虚拟一个容器，容器的宽度与设备的宽度相同。
+    width: 默认宽度与设备的宽度相同
+    initial-scale: 初始的缩放比，为1:1 -->
+<!--    <meta name="viewport" content="width=device-width, initial-scale=1">-->
+    <!-- 上述3个meta标签*必须*放在最前面，任何其他内容都*必须*跟随其后！ -->
+    <meta name="viewport" content="width=device-width,initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+
+
+    <title>在线音乐服务器</title>
+
+    <link rel="shortcut icon" href="#" />
+
+    <!-- 1. 导入CSS的全局样式 -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <!-- 2. jQuery导入，建议使用1.9以上的版本 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <!-- 3. 导入bootstrap的js文件 -->
+   <!-- <script src="js/bootstrap.min.js"></script>-->
+    <style type="text/css">
+        td, th {
+            text-align: center;
+        }
+    </style>
+
+    <script type="text/javascript">
+        // 核心代码实现
+        // 查询所有音乐 显示音乐列表
+		$(function(){
+            load();
+        });
+
+        // 搜索音乐
+        //musicName可以传参  也可以不传参数
+        function load(musicName) {
+            $.ajax({
+                type: 'get',
+                url: 'music/query',
+                data: {
+                    'title': musicName
+                },
+                success: function(result) {
+                    console.log(result);
+                    var list = result.data;
+                    var s = '';
+                    for(var i = 0; i < list.length; i++) {
+                        var music = list[i];
+                        var url = music.url + '.mp3';
+                        s += '<tr>';
+                        s +=  '<th> <input id="' + music.id + '" type="checkbox"> </th>';
+                        s +=  '<td>' + music.title + '</td>';
+                        s +=  '<td>' + music.singer + '</td>';
+                        s +=  '<td><button class="btn btn-primary" onclick="playerSong(\'' + url + '\')">播放歌曲</button></td>';
+                        s +=  '<td><button class="btn btn-primary" onclick="deleteMusic(' + music.id + ')">删除</button>';
+                        s +=      '<button class="btn btn-primary" onclick="love(' + music.id + ')">喜欢</button>';  
+                        s +=  '</td>';
+                        s += '</tr>';
+                    }
+                    $('#info').html(s);
+                }
+            });
+        }
+
+        // 播放音乐
+        function playerSong(url) {
+            var name = url.substring(url.lastIndexOf('=') + 1);
+            // url: 播放音乐的地址 name：播放音乐的名称  0: 播放的开始时间 true：自动播放
+            SewisePlayer.toPlay(url, name, 0, true);
+        }
+
+        // 删除音乐
+        function deleteMusic(id) {
+            console.log('音乐id:' + id);
+            $.ajax({
+                type: 'post',
+                url: 'music/delete',
+                data: {
+                    'id': id
+                },
+                success: function(result) {
+                    console.log('result:' + result);
+                    if(result.data == true) {
+                        alert(result.message);
+                        location.reload();
+                    } else {
+                        alert(result.message);
+                    }
+                }
+            });
+        }
+
+        // 收藏音乐
+        function love(id) {
+            console.log('音乐id：' + id);
+            $.ajax({
+                type: 'post',
+                url: 'lovemusic/like',
+                data: {
+                    'musicId': id
+                },
+                success: function(result) {
+                    alert(result.message);
+                }
+            });
+            
+        }
+
+        // 查询音乐
+        function queryByName(name) {
+            load(name);
+        }
+
+        // 批量删除
+        $(function(){
+            $.when(load).done(function(){
+                $('#delete').click(function(){
+                        var id = new Array();
+                        var i = 0;//数组的小标
+                        $("input:checkbox").each(function(){
+                            //如果被选中,this代表发生事件的dom元素，<input>
+                            if($(this).is(":checked")) {
+                                id[i] = $(this).attr("id");
+                                i++;
+                            }
+                        });
+                        console.log(id);
+                        $.ajax({
+                            url:"/music/deleteMany",
+                            data:{
+                                'ids': id
+                            },
+                            type:"post",
+                            success:function(obj){
+                                if(obj.data == true) {
+                                    alert(obj.message);
+                                    location.reload();
+                                }else{
+                                    alert(obj.message);
+                                }
+                            }
+                        });
+                });
+            });
+        });
+    </script>
+</head>
+
+<body id="body">
+<div class="container">
+    <h3  style="text-align: center">在线音乐服务器实现</h3>
+    <div style="float: left;">
+        <form class="form-inline">
+            <div class="form-group">
+                <label for="exampleInputName2">歌曲名</label>
+                <input name="name" type="text" class="form-control" id="exampleInputName2" >
+            </div>
+            <button id="submit1" type="button" onclick="queryByName($('#exampleInputName2').val())" class="btn btn-primary">查询</button>
+        </form>
+    </div>
+    <div style="float: right;margin-bottom: 15px">
+        <a class="btn btn-primary" href="loveMusic.html">喜欢列表</a>
+        <a class="btn btn-primary" href="upload.html">添加歌曲</a>
+        <a id="delete" class="btn btn-primary">删除选中</a>
+    </div>
+    <table border="1" class="table table-bordered table-hover">
+        <tr class="success">
+            <th>选择</th>
+            <th>歌名</th>
+            <th>歌手</th>
+            <th>歌曲</th>
+            <th>操作</th>
+        </tr>
+
+        
+
+        <tbody id="info" valign="middle">
+        </tbody>
+    </table>
+</div>
+</body>
+<div style="width: 180px; height: 140px; position:absolute; bottom:10px; right:10px">
+    <script type="text/javascript" src="player/sewise.player.min.js"></script>
+    <script type="text/javascript">
+			SewisePlayer.setup({
+				server: "vod",
+				type: "mp3",
+                //这里是默认的一个网址
+				videourl:"http://jackzhang1204.github.io/materials/where_did_time_go.mp3",
+		        skin: "vodWhite",
+                //这里需要设置false
+                autostart:"false",
+			});
+	</script>
+</div>
+</html>
